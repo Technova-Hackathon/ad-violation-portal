@@ -7,11 +7,9 @@
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Leaflet CSS for the map -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
-        crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" crossorigin="" />
     <!-- Leaflet JavaScript -->
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"
-        crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" crossorigin=""></script>
     <!-- Supabase JavaScript Client -->
     <script src="https://unpkg.com/@supabase/supabase-js@2.44.2/dist/umd/supabase.js"></script>
     
@@ -36,6 +34,43 @@
             height: 60vh;
             width: 100%;
             border-radius: 8px;
+        }
+        .report-card {
+            display: flex;
+            background-color: white;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .report-thumb {
+            width: 80px;
+            height: 100px;
+            border-radius: 8px;
+            background-color: #e5e7eb;
+            object-fit: cover;
+        }
+        .report-info {
+            flex: 1;
+            margin-left: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .report-status {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .report-address {
+            font-size: 14px;
+            color: #111;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .report-date {
+            font-size: 12px;
+            color: #666;
         }
     </style>
 </head>
@@ -67,6 +102,9 @@
                     <div id="reports-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         <!-- Report cards will be injected here -->
                     </div>
+                    <div id="loading-indicator" class="flex justify-center mt-4 hidden">
+                        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div>
+                    </div>
                 </div>
             </div>
 
@@ -82,12 +120,9 @@
             shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
         });
 
-        // Your Supabase project URL and public key
-        // !!! IMPORTANT: REPLACE THESE WITH YOUR OWN SUPABASE CREDENTIALS !!!
-        const supabaseUrl = 'https://uwftfrikbdgzzppgequh.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3ZnRmcmlrYmRnenpwcGdlcXVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3MTc5OTgsImV4cCI6MjA3MTI5Mzk5OH0.ySbsFddFWLUMfrVl2ymsPv20Cqau9C00rbJ48NhtOwE';
+        const supabaseUrl = 'https://sxfcghkcvgtyujmnbjkl.supabase.co'; // REPLACE WITH YOUR SUPABASE URL
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4ZmNnaGtjdmd0eXVqbW5iamtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjE0NjgwNzksImV4cCI6MjAzNzAzMjY3OX0.SJFyN9lYgY5y3x4zT7w3p4e-n9YtE-e-n9YtE-e-n9E'; // REPLACE WITH YOUR SUPABASE ANON KEY
         
-        // Correctly initialize the Supabase client by accessing the global object
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         const map = L.map('map').setView([20.2961, 85.8245], 13); // Centered on Bhubaneswar
@@ -96,9 +131,19 @@
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
+        const statusLabel = (s) => {
+            const map = {
+                pending: "⏳ Pending",
+                success: "✅ Success",
+                warning: "⚠️ Warning",
+                error: "⛔ Error",
+                violation: "🚫 Violation",
+            };
+            return map[s ?? "pending"] ?? "⏳ Pending";
+        };
+
         async function fetchReportsAndPopulateMap() {
-            // Check if the user has replaced the placeholder credentials
-            if (supabaseUrl.includes('sxfcghkcvgtyujmnbjkl') || supabaseKey.includes('SJFyN9lYgY5y3x4zT7w3p4y8gB8o7YtE-e-n9YtE-e-n9E')) {
+            if (supabaseUrl.includes('sxfcghkcvgtyujmnbjkl') || supabaseKey.includes('SJFyN9lYgY5y3x4zT7w3p4e-n9YtE-e-n9YtE-e-n9E')) {
                 const errorMessage = 'Please update the `supabaseUrl` and `supabaseKey` with your own credentials in the code.';
                 console.error(errorMessage);
                 document.getElementById('reports-list').innerHTML = `
@@ -106,11 +151,10 @@
                         <p>${errorMessage}</p>
                     </div>
                 `;
-                return; // Stop execution
+                return;
             }
 
             try {
-                // Fetch data from the 'reports' table, ordered by creation date
                 const { data: reports, count, error } = await supabase
                     .from('reports')
                     .select('*', { count: 'exact' })
@@ -120,38 +164,40 @@
                     throw error;
                 }
 
-                // Update report count
                 document.getElementById('report-count').textContent = count || 0;
 
                 const reportsListDiv = document.getElementById('reports-list');
-                reportsListDiv.innerHTML = ''; // Clear previous list
+                reportsListDiv.innerHTML = '';
 
                 reports.forEach(report => {
+                    // Create map marker
                     if (report.latitude && report.longitude) {
-                        // Add marker to the map
                         const marker = L.marker([report.latitude, report.longitude]).addTo(map);
                         marker.bindPopup(`
                             <div class="p-2">
                                 <h3 class="font-bold">Report #${report.id}</h3>
-                                <p>Status: ${report.status}</p>
+                                <p>Status: ${statusLabel(report.status)}</p>
                                 ${report.image_url ? `<img src="${report.image_url}" alt="Billboard" class="w-24 h-auto my-2 rounded-md">` : ''}
                                 <p class="text-xs text-gray-500">Submitted on: ${new Date(report.created_at).toLocaleString()}</p>
                             </div>
                         `);
-
-                        // Add a card to the reports list
-                        const reportCard = document.createElement('div');
-                        reportCard.className = 'card p-4 flex flex-col items-center text-center';
-                        reportCard.innerHTML = `
-                            <h4 class="text-lg font-bold">Report #${report.id}</h4>
-                            <p class="text-sm mt-1 text-gray-300">Status: ${report.status}</p>
-                            ${report.image_url ? `<img src="${report.image_url}" alt="Billboard" class="w-32 h-32 object-cover my-2 rounded-md">` : ''}
-                            <p class="text-xs text-gray-500">${new Date(report.created_at).toLocaleDateString()}</p>
-                        `;
-                        reportsListDiv.appendChild(reportCard);
                     }
-                });
 
+                    // Create report card for the list
+                    const reportCard = document.createElement('div');
+                    reportCard.className = 'report-card flex items-center mb-4';
+                    reportCard.innerHTML = `
+                        <div class="w-24 h-32 mr-4 overflow-hidden rounded-md">
+                            ${report.image_url ? `<img src="${report.image_url}" alt="Report image" class="report-thumb">` : `<div class="report-thumb flex items-center justify-center text-5xl">📷</div>`}
+                        </div>
+                        <div class="report-info">
+                            <h4 class="report-status">${statusLabel(report.status)}</h4>
+                            <p class="report-address text-gray-800">${report.address || (report.lat && report.lon ? `📍 ${report.lat.toFixed(4)}, ${report.lon.toFixed(4)}` : 'No address')}</p>
+                            <p class="report-date text-gray-600">${new Date(report.created_at).toLocaleDateString()}</p>
+                        </div>
+                    `;
+                    reportsListDiv.appendChild(reportCard);
+                });
             } catch (error) {
                 console.error('Error fetching reports:', error);
                 document.getElementById('reports-list').innerHTML = `
@@ -162,7 +208,6 @@
             }
         }
         
-        // Fetch and display reports on page load
         document.addEventListener('DOMContentLoaded', fetchReportsAndPopulateMap);
     </script>
 </body>
