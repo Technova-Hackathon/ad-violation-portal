@@ -179,9 +179,11 @@
               ${report.image_url ? `<img src="${report.image_url}" class="report-thumb">` : `<div class="report-thumb flex items-center justify-center text-4xl">📷</div>`}
             </div>
             <div class="report-info">
-              <h4 class="report-status">${statusText}</h4>
+              <h4 class="report-status ${statusColor(statusText)}">${statusText}</h4>
               <p class="report-address">${report.message || 'No details'}</p>
               <p class="report-date">${new Date(report.created_at).toLocaleDateString()}</p>
+              
+
             </div>
           `;
                     list.appendChild(card);
