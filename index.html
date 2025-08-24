@@ -1,209 +1,182 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Billboard Violation Public Dashboard</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Billboard Violation Public Dashboard</title>
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Leaflet CSS + JS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet CSS + JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <!-- Supabase -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2.44.2/dist/umd/supabase.js"></script>
+  <!-- Supabase -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2.44.2/dist/umd/supabase.js"></script>
 
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0f172a; /* dark background */
+      color: #e2e8f0;
+    }
+    .card {
+      background-color: #1e293b;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+    }
+    .map-container { height: 65vh; width: 100%; border-radius: 8px; }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0f172a;
-            color: #e2e8f0;
-        }
-
-        .card {
-            background-color: #1e293b;
-            border-radius: 12px;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
-        }
-
-        .map-container {
-            height: 65vh;
-            width: 100%;
-            border-radius: 8px;
-        }
-
-        .report-card {
-            background-color: #f8fafc;
-            /* light card */
-            color: #111827;
-            /* dark gray text for readability */
-        }
-
-        .report-status {
-            font-weight: 700;
-            margin-bottom: 4px;
-            color: #111827;
-            /* force dark heading color */
-        }
-
-        .report-thumb {
-            width: 90px;
-            height: 110px;
-            border-radius: 8px;
-            object-fit: cover;
-            background-color: #e2e8f0;
-        }
-
-        .report-info {
-            flex: 1;
-            margin-left: 12px;
-        }
-
-        .report-status {
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .report-address {
-            font-size: 14px;
-            color: #111;
-            margin-bottom: 4px;
-        }
-
-        .report-date {
-            font-size: 12px;
-            color: #475569;
-        }
-    </style>
+    /* Report card (light) */
+    .report-card {
+      display: flex;
+      background-color: #f8fafc; /* light background */
+      padding: 12px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      color: #111827; /* dark text */
+    }
+    .report-thumb {
+      width: 90px; height: 110px; border-radius: 8px; object-fit: cover;
+      background-color: #e2e8f0;
+    }
+    .report-info { flex: 1; margin-left: 12px; }
+    .report-status { font-weight: 700; margin-bottom: 4px; }
+    .report-address { font-size: 14px; margin-bottom: 4px; color: #374151; }
+    .report-date { font-size: 12px; color: #6b7280; }
+  </style>
 </head>
-
 <body class="p-6">
 
-    <div class="container mx-auto max-w-7xl">
-        <!-- Header -->
-        <div class="card p-6 text-center mb-8">
-            <h1 class="text-3xl font-bold mb-2 text-amber-400">📊 Billboard Violation Dashboard</h1>
-            <p class="text-lg text-slate-300">Total Reports: <span id="report-count"
-                    class="font-bold text-blue-400">0</span></p>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- Reports List -->
-            <div class="lg:col-span-5">
-                <div class="card p-6">
-                    <h2 class="text-2xl font-semibold mb-4">Latest Reports</h2>
-                    <div id="reports-list" class="space-y-4"></div>
-                </div>
-            </div>
-
-            <!-- Map -->
-            <div class="lg:col-span-7">
-                <div class="card p-6">
-                    <h2 class="text-2xl font-semibold mb-4">Report Locations</h2>
-                    <div id="map" class="map-container"></div>
-                </div>
-            </div>
-        </div>
+  <div class="container mx-auto max-w-7xl">
+    <!-- Header -->
+    <div class="card p-6 text-center mb-8">
+      <h1 class="text-3xl font-bold mb-2 text-amber-400">📊 Billboard Violation Dashboard</h1>
+      <p class="text-lg text-slate-300">Total Reports: <span id="report-count" class="font-bold text-blue-400">0</span></p>
     </div>
 
-    <script>
-        // Fix default marker icons
-        delete L.Icon.Default.prototype._getIconUrl;
-        L.Icon.Default.mergeOptions({
-            iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        });
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Reports List -->
+      <div class="lg:col-span-5">
+        <div class="card p-6">
+          <h2 class="text-2xl font-semibold mb-4">Latest Reports</h2>
+          <div id="reports-list" class="space-y-4"></div>
+        </div>
+      </div>
 
-        // Supabase config (replace with your project values if rotated later)
-        const supabaseUrl = 'https://uwftfrikbdgzzppgequh.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3ZnRmcmlrYmRnenpwcGdlcXVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3MTc5OTgsImV4cCI6MjA3MTI5Mzk5OH0.ySbsFddFWLUMfrVl2ymsPv20Cqau9C00rbJ48NhtOwE';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+      <!-- Map -->
+      <div class="lg:col-span-7">
+        <div class="card p-6">
+          <h2 class="text-2xl font-semibold mb-4">Report Locations</h2>
+          <div id="map" class="map-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        // Init map
-        const map = L.map('map').setView([20.2961, 85.8245], 12);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
+  <script>
+    // Fix default marker icons
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
 
-        const statusLabel = (report) => {
-            if (report.message?.includes('No billboard detected')) return '⚠️ Invalid Image';
-            if (report.message?.includes('Missing QR')) return '🚫 Violation Detected';
-            if (report.status === 'success') return '✅ All Correct';
-            const map = { pending: "⏳ Pending", success: "✅ All Correct", violation: "🚫 Violation", error: "⛔ Error" };
-            return map[report.status ?? "pending"] ?? "⏳ Pending";
-        };
+    // Supabase config (replace with your project values if rotated later)
+    const supabaseUrl = 'https://uwftfrikbdgzzppgequh.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3ZnRmcmlrYmRnenpwcGdlcXVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3MTc5OTgsImV4cCI6MjA3MTI5Mzk5OH0.ySbsFddFWLUMfrVl2ymsPv20Cqau9C00rbJ48NhtOwE';
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-        async function loadReports() {
-            try {
-                const { data: reports, count, error } = await supabase
-                    .from('reports')
-                    .select('*', { count: 'exact' })
-                    .order('created_at', { ascending: false });
+    // Init map
+    const map = L.map('map').setView([20.2961, 85.8245], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
 
-                if (error) throw error;
+    // Status mapping
+    const statusLabel = (report) => {
+      if (report.message?.includes('No billboard detected')) return '⚠️ Invalid Image';
+      if (report.message?.includes('Missing QR')) return '🚫 Violation Detected';
+      if (report.status === 'success') return '✅ All Correct';
+      const map = { pending:"⏳ Pending", success:"✅ All Correct", violation:"✅ All Correct", error:"⛔ Error" };
+      return map[report.status ?? "pending"] ?? "⏳ Pending";
+    };
 
-                document.getElementById('report-count').textContent = count || 0;
-                const list = document.getElementById('reports-list');
-                list.innerHTML = '';
+    // Assign colors based on status
+    const statusColor = (statusText) => {
+      if (statusText.includes('Invalid')) return 'text-yellow-600';
+      if (statusText.includes('Violation')) return 'text-red-600';
+      if (statusText.includes('Correct')) return 'text-green-600';
+      return 'text-gray-800';
+    };
 
-                const markers = [];
+    async function loadReports() {
+      try {
+        const { data: reports, count, error } = await supabase
+          .from('reports')
+          .select('*', { count: 'exact' })
+          .order('created_at', { ascending: false });
 
-                reports.forEach(report => {
-                    const statusText = statusLabel(report);
+        if (error) throw error;
 
-                    // Ensure lat/lon fields exist and are numbers
-                    if (report.lat && report.lon) {
-                        const marker = L.marker([parseFloat(report.lat), parseFloat(report.lon)]).addTo(map);
-                        marker.bindPopup(`
+        document.getElementById('report-count').textContent = count || 0;
+        const list = document.getElementById('reports-list');
+        list.innerHTML = '';
+
+        const markers = [];
+
+        reports.forEach(report => {
+          const statusText = statusLabel(report);
+          const colorClass = statusColor(statusText);
+
+          // Ensure lat/lon fields exist
+          if (report.lat && report.lon) {
+            const marker = L.marker([parseFloat(report.lat), parseFloat(report.lon)]).addTo(map);
+            marker.bindPopup(`
               <div class="p-2">
                 <h3 class="font-bold">Report #${report.id}</h3>
                 <p>Status: ${statusText}</p>
+                <p>Location: ${report.lat}, ${report.lon}</p>
                 ${report.image_url ? `<img src="${report.image_url}" class="w-28 my-2 rounded-md">` : ''}
                 <p class="text-xs text-gray-500">Submitted: ${new Date(report.created_at).toLocaleString()}</p>
               </div>
             `);
-                        markers.push(marker);
-                    }
+            markers.push(marker);
+          }
 
-                    // Report card
-                    const card = document.createElement('div');
-                    card.className = 'report-card';
-                    card.innerHTML = `
-            <div class="w-24 h-32 mr-4 overflow-hidden rounded-md">
+          // Report card (now simplified: heading + location only)
+          const card = document.createElement('div');
+          card.className = 'report-card';
+          card.innerHTML = `
+            <div class="w-24 h-32 mr-4 overflow-hidden rounded-md flex-shrink-0">
               ${report.image_url ? `<img src="${report.image_url}" class="report-thumb">` : `<div class="report-thumb flex items-center justify-center text-4xl">📷</div>`}
             </div>
             <div class="report-info">
-              <h4 class="report-status ${statusColor(statusText)}">${statusText}</h4>
-              <p class="report-address">${report.message || 'No details'}</p>
+              <h4 class="report-status ${colorClass}">${statusText}</h4>
+              <p class="report-address">Location: ${report.lat}, ${report.lon}</p>
               <p class="report-date">${new Date(report.created_at).toLocaleDateString()}</p>
-              
-
             </div>
           `;
-                    list.appendChild(card);
-                });
+          list.appendChild(card);
+        });
 
-                // Auto fit map bounds if markers exist
-                if (markers.length > 0) {
-                    const group = new L.featureGroup(markers);
-                    map.fitBounds(group.getBounds().pad(0.2));
-                }
-
-            } catch (err) {
-                console.error(err);
-                document.getElementById('reports-list').innerHTML =
-                    `<p class="text-red-500 text-center">Failed to load reports. Check Supabase credentials & DB rules.</p>`;
-            }
+        // Auto fit map bounds if markers exist
+        if (markers.length > 0) {
+          const group = new L.featureGroup(markers);
+          map.fitBounds(group.getBounds().pad(0.2));
         }
 
-        document.addEventListener('DOMContentLoaded', loadReports);
-    </script>
-</body>
+      } catch (err) {
+        console.error(err);
+        document.getElementById('reports-list').innerHTML =
+          `<p class="text-red-500 text-center">Failed to load reports. Check Supabase credentials & DB rules.</p>`;
+      }
+    }
 
+    document.addEventListener('DOMContentLoaded', loadReports);
+  </script>
+</body>
 </html>
