@@ -1,240 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Billboard Violation Public Dashboard</title>
-    <!-- Tailwind CSS for styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Leaflet CSS for the map -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" crossorigin="" />
-    <!-- Leaflet JavaScript -->
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" crossorigin=""></script>
-    <!-- Supabase JavaScript Client -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2.44.2/dist/umd/supabase.js"></script>
-    
-    <style>
-        /* Custom styles for the app */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #121212;
-            color: #E0E0E0;
-        }
-        .card {
-            background-color: #1E1E1E;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-            transition: transform 0.2s ease-in-out;
-        }
-        .card:hover {
-            transform: translateY(-2px);
-        }
-        .map-container {
-            height: 60vh;
-            width: 100%;
-            border-radius: 8px;
-        }
-        .report-card {
-            display: flex;
-            background-color: white;
-            padding: 10px;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .report-thumb {
-            width: 80px;
-            height: 100px;
-            border-radius: 8px;
-            background-color: #e5e7eb;
-            object-fit: cover;
-        }
-        .report-info {
-            flex: 1;
-            margin-left: 10px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        .report-status {
-            font-weight: bold;
-            margin-bottom: 4px;
-        }
-        .report-address {
-            font-size: 14px;
-            color: #111;
-            margin-bottom: 4px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .report-date {
-            font-size: 12px;
-            color: #666;
-        }
-        /* New styles for the two-column layout */
-        @media (min-width: 1024px) {
-            .two-column-layout {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 24px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Billboard Violation Public Dashboard</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet CSS + JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Supabase -->
+  <script src="https://unpkg.com/@supabase/supabase-js@2.44.2/dist/umd/supabase.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0f172a;
+      color: #e2e8f0;
+    }
+    .card {
+      background-color: #1e293b;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+    }
+    .map-container { height: 65vh; width: 100%; border-radius: 8px; }
+    .report-card {
+      display: flex;
+      background-color: #f8fafc;
+      padding: 10px;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    .report-thumb {
+      width: 90px; height: 110px; border-radius: 8px; object-fit: cover;
+      background-color: #e2e8f0;
+    }
+    .report-info { flex: 1; margin-left: 12px; }
+    .report-status { font-weight: 700; margin-bottom: 4px; }
+    .report-address { font-size: 14px; color: #111; margin-bottom: 4px; }
+    .report-date { font-size: 12px; color: #475569; }
+  </style>
 </head>
-<body class="p-8">
+<body class="p-6">
 
-    <div class="container mx-auto max-w-7xl">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
-
-            <!-- Header Card -->
-            <div class="lg:col-span-12">
-                <div class="card p-6 text-center">
-                    <h1 class="text-3xl font-bold mb-2 text-amber-500">Billboard Violation Public Dashboard</h1>
-                    <p class="text-lg text-gray-400">Total Reports: <span id="report-count" class="font-bold text-blue-400">0</span></p>
-                </div>
-            </div>
-
-            <!-- Main Content Area with two columns on large screens -->
-            <div class="lg:col-span-12 two-column-layout">
-
-                <!-- Reports List Card (on the left) -->
-                <div class="order-2 lg:order-1">
-                    <div class="card p-6">
-                        <h2 class="text-2xl font-semibold mb-4">Latest Reports</h2>
-                        <div id="reports-list" class="grid grid-cols-1 sm:grid-cols-1 gap-4">
-                            <!-- Report cards will be injected here -->
-                        </div>
-                        <div id="loading-indicator" class="flex justify-center mt-4 hidden">
-                            <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Map Card (on the right) -->
-                <div class="order-1 lg:order-2">
-                    <div class="card p-6">
-                        <h2 class="text-2xl font-semibold mb-4">Report Locations</h2>
-                        <div id="map" class="map-container"></div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
+  <div class="container mx-auto max-w-7xl">
+    <!-- Header -->
+    <div class="card p-6 text-center mb-8">
+      <h1 class="text-3xl font-bold mb-2 text-amber-400">📊 Billboard Violation Dashboard</h1>
+      <p class="text-lg text-slate-300">Total Reports: <span id="report-count" class="font-bold text-blue-400">0</span></p>
     </div>
 
-    <script>
-        // Leaflet marker icon fix
-        delete L.Icon.Default.prototype._getIconUrl;
-        L.Icon.Default.mergeOptions({
-            iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-            iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-            shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Reports List -->
+      <div class="lg:col-span-5">
+        <div class="card p-6">
+          <h2 class="text-2xl font-semibold mb-4">Latest Reports</h2>
+          <div id="reports-list" class="space-y-4"></div>
+        </div>
+      </div>
+
+      <!-- Map -->
+      <div class="lg:col-span-7">
+        <div class="card p-6">
+          <h2 class="text-2xl font-semibold mb-4">Report Locations</h2>
+          <div id="map" class="map-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Fix default marker icons
+    delete L.Icon.Default.prototype._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+
+    // Supabase config (replace with your project values if rotated later)
+    const supabaseUrl = 'https://uwftfrikbdgzzppgequh.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3ZnRmcmlrYmRnenpwcGdlcXVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3MTc5OTgsImV4cCI6MjA3MTI5Mzk5OH0.ySbsFddFWLUMfrVl2ymsPv20Cqau9C00rbJ48NhtOwE';
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    // Init map
+    const map = L.map('map').setView([20.2961, 85.8245], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const statusLabel = (report) => {
+      if (report.message?.includes('No billboard detected')) return '⚠️ Invalid Image';
+      if (report.message?.includes('Missing QR')) return '🚫 Violation Detected';
+      if (report.status === 'success') return '✅ All Correct';
+      const map = { pending:"⏳ Pending", success:"✅ All Correct", violation:"🚫 Violation", error:"⛔ Error" };
+      return map[report.status ?? "pending"] ?? "⏳ Pending";
+    };
+
+    async function loadReports() {
+      try {
+        const { data: reports, count, error } = await supabase
+          .from('reports')
+          .select('*', { count: 'exact' })
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        document.getElementById('report-count').textContent = count || 0;
+        const list = document.getElementById('reports-list');
+        list.innerHTML = '';
+
+        const markers = [];
+
+        reports.forEach(report => {
+          const statusText = statusLabel(report);
+
+          // Ensure lat/lon fields exist and are numbers
+          if (report.lat && report.lon) {
+            const marker = L.marker([parseFloat(report.lat), parseFloat(report.lon)]).addTo(map);
+            marker.bindPopup(`
+              <div class="p-2">
+                <h3 class="font-bold">Report #${report.id}</h3>
+                <p>Status: ${statusText}</p>
+                ${report.image_url ? `<img src="${report.image_url}" class="w-28 my-2 rounded-md">` : ''}
+                <p class="text-xs text-gray-500">Submitted: ${new Date(report.created_at).toLocaleString()}</p>
+              </div>
+            `);
+            markers.push(marker);
+          }
+
+          // Report card
+          const card = document.createElement('div');
+          card.className = 'report-card';
+          card.innerHTML = `
+            <div class="w-24 h-32 mr-4 overflow-hidden rounded-md">
+              ${report.image_url ? `<img src="${report.image_url}" class="report-thumb">` : `<div class="report-thumb flex items-center justify-center text-4xl">📷</div>`}
+            </div>
+            <div class="report-info">
+              <h4 class="report-status">${statusText}</h4>
+              <p class="report-address">${report.message || 'No details'}</p>
+              <p class="report-date">${new Date(report.created_at).toLocaleDateString()}</p>
+            </div>
+          `;
+          list.appendChild(card);
         });
 
-        const supabaseUrl = 'https://uwftfrikbdgzzppgequh.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3ZnRmcmlrYmRnenpwcGdlcXVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3MTc5OTg1LCJleHAiOjIwNzEyOTM5OTg1fQ.ySbsFddFWLUMfrVl2ymsPv20Cqau9C00rbJ48NhtOwE';
-        
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-
-        const map = L.map('map').setView([20.2961, 85.8245], 13); // Centered on Bhubaneswar
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
-
-        // UPDATED: The statusLabel function to match the app's logic
-        const statusLabel = (report) => {
-            if (report.message && report.message.includes('No billboard detected')) {
-                return '⚠️ Invalid Image';
-            }
-            if (report.message && report.message.includes('Missing QR')) {
-                return '🚫 Violation Detected';
-            }
-            if (report.status === 'success') {
-                return '✅ All Correct';
-            }
-            
-            // Fallback to the original status logic if no specific message is found
-            const map = {
-                pending: "⏳ Pending",
-                success: "✅ All Correct", 
-                warning: "⚠️ Warning",
-                error: "⛔ Error",
-                violation: "🚫 Violation",
-            };
-            return map[report.status ?? "pending"] ?? "⏳ Pending";
-        };
-
-        async function fetchReportsAndPopulateMap() {
-            if (supabaseUrl.includes('sxfcghkcvgtyujmnbjkl') || supabaseKey.includes('SJFyN9lYgY5y3x4zT7w3p4e-n9YtE-e-n9YtE-e-n9E')) {
-                const errorMessage = 'Please update the `supabaseUrl` and `supabaseKey` with your own credentials in the code.';
-                console.error(errorMessage);
-                document.getElementById('reports-list').innerHTML = `
-                    <div class="col-span-12 text-center text-red-500">
-                        <p>${errorMessage}</p>
-                    </div>
-                `;
-                return;
-            }
-
-            try {
-                const { data: reports, count, error } = await supabase
-                    .from('reports')
-                    .select('*', { count: 'exact' })
-                    .order('created_at', { ascending: false });
-
-                if (error) {
-                    throw error;
-                }
-
-                document.getElementById('report-count').textContent = count || 0;
-
-                const reportsListDiv = document.getElementById('reports-list');
-                reportsListDiv.innerHTML = '';
-
-                reports.forEach(report => {
-                    const statusText = statusLabel(report);
-
-                    // Create map marker
-                    if (report.lat && report.lon) {
-                        const marker = L.marker([report.lat, report.lon]).addTo(map);
-                        marker.bindPopup(`
-                            <div class="p-2">
-                                <h3 class="font-bold">Report #${report.id}</h3>
-                                <p>Status: ${statusText}</p>
-                                ${report.image_url ? `<img src="${report.image_url}" alt="Billboard" class="w-24 h-auto my-2 rounded-md">` : ''}
-                                <p class="text-xs text-gray-500">Submitted on: ${new Date(report.created_at).toLocaleString()}</p>
-                            </div>
-                        `);
-                    }
-
-                    // Create report card for the list
-                    const reportCard = document.createElement('div');
-                    reportCard.className = 'report-card flex items-center mb-4';
-                    reportCard.innerHTML = `
-                        <div class="w-24 h-32 mr-4 overflow-hidden rounded-md">
-                            ${report.image_url ? `<img src="${report.image_url}" alt="Report image" class="report-thumb">` : `<div class="report-thumb flex items-center justify-center text-5xl">📷</div>`}
-                        </div>
-                        <div class="report-info">
-                            <h4 class="report-status">${statusText}</h4>
-                            <p class="report-address text-gray-800">${report.message || 'No specific message'}</p>
-                            <p class="report-date text-gray-600">${new Date(report.created_at).toLocaleDateString()}</p>
-                        </div>
-                    `;
-                    reportsListDiv.appendChild(reportCard);
-                });
-            } catch (error) {
-                console.error('Error fetching reports:', error);
-                document.getElementById('reports-list').innerHTML = `
-                    <div class="col-span-12 text-center text-red-500">
-                        <p>Failed to load reports. Please check your Supabase credentials and database security rules.</p>
-                    </div>
-                `;
-            }
+        // Auto fit map bounds if markers exist
+        if (markers.length > 0) {
+          const group = new L.featureGroup(markers);
+          map.fitBounds(group.getBounds().pad(0.2));
         }
-        
-        document.addEventListener('DOMContentLoaded', fetchReportsAndPopulateMap);
-    </script>
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById('reports-list').innerHTML =
+          `<p class="text-red-500 text-center">Failed to load reports. Check Supabase credentials & DB rules.</p>`;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadReports);
+  </script>
 </body>
 </html>
