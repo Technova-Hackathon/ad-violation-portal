@@ -133,7 +133,7 @@
         });
 
         const supabaseUrl = 'https://uwftfrikbdgzzppgequh.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3ZnRmcmlrYmRnenpwcGdlcXVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3MTc5OTgsImV4cCI6MjA3MTI5Mzk5OH0.ySbsFddFWLUMfrVl2ymsPv20Cqau9C00rbJ48NhtOwE';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3ZnRmcmlrYmRnenpwcGdlcXVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3MTc5OTg1LCJleHAiOjIwNzEyOTM5OTg1fQ.ySbsFddFWLUMfrVl2ymsPv20Cqau9C00rbJ48NhtOwE';
         
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
@@ -143,15 +143,27 @@
             attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        const statusLabel = (s) => {
+        // UPDATED: The statusLabel function to match the app's logic
+        const statusLabel = (status, message) => {
+            if (message && message.includes('No billboard detected')) {
+                return '⚠️ Invalid Image';
+            }
+            if (message && message.includes('Missing QR')) {
+                return '🚫 Violation Detected';
+            }
+            if (message && message.includes('✅ QR Found Correctly')) {
+                return '✅ All Correct';
+            }
+            
+            // Fallback to the original status logic if no specific message is found
             const map = {
                 pending: "⏳ Pending",
-                success: "✅ Success",
+                success: "✅ All Correct", 
                 warning: "⚠️ Warning",
                 error: "⛔ Error",
                 violation: "🚫 Violation",
             };
-            return map[s ?? "pending"] ?? "⏳ Pending";
+            return map[status ?? "pending"] ?? "⏳ Pending";
         };
 
         async function fetchReportsAndPopulateMap() {
@@ -182,13 +194,15 @@
                 reportsListDiv.innerHTML = '';
 
                 reports.forEach(report => {
+                    const statusText = statusLabel(report.status, report.message);
+
                     // Create map marker
-                    if (report.latitude && report.longitude) {
-                        const marker = L.marker([report.latitude, report.longitude]).addTo(map);
+                    if (report.lat && report.lon) {
+                        const marker = L.marker([report.lat, report.lon]).addTo(map);
                         marker.bindPopup(`
                             <div class="p-2">
                                 <h3 class="font-bold">Report #${report.id}</h3>
-                                <p>Status: ${statusLabel(report.status)}</p>
+                                <p>Status: ${statusText}</p>
                                 ${report.image_url ? `<img src="${report.image_url}" alt="Billboard" class="w-24 h-auto my-2 rounded-md">` : ''}
                                 <p class="text-xs text-gray-500">Submitted on: ${new Date(report.created_at).toLocaleString()}</p>
                             </div>
@@ -203,8 +217,8 @@
                             ${report.image_url ? `<img src="${report.image_url}" alt="Report image" class="report-thumb">` : `<div class="report-thumb flex items-center justify-center text-5xl">📷</div>`}
                         </div>
                         <div class="report-info">
-                            <h4 class="report-status">${statusLabel(report.status)}</h4>
-                            <p class="report-address text-gray-800">${report.address || (report.lat && report.lon ? `📍 ${report.lat.toFixed(4)}, ${report.lon.toFixed(4)}` : 'No address')}</p>
+                            <h4 class="report-status">${statusText}</h4>
+                            <p class="report-address text-gray-800">${report.message || 'No specific message'}</p>
                             <p class="report-date text-gray-600">${new Date(report.created_at).toLocaleDateString()}</p>
                         </div>
                     `;
