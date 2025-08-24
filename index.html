@@ -144,14 +144,14 @@
         }).addTo(map);
 
         // UPDATED: The statusLabel function to match the app's logic
-        const statusLabel = (status, message) => {
-            if (message && message.includes('No billboard detected')) {
+        const statusLabel = (report) => {
+            if (report.message && report.message.includes('No billboard detected')) {
                 return '⚠️ Invalid Image';
             }
-            if (message && message.includes('Missing QR')) {
+            if (report.message && report.message.includes('Missing QR')) {
                 return '🚫 Violation Detected';
             }
-            if (status === 'success') {
+            if (report.status === 'success') {
                 return '✅ All Correct';
             }
             
@@ -163,7 +163,7 @@
                 error: "⛔ Error",
                 violation: "🚫 Violation",
             };
-            return map[status ?? "pending"] ?? "⏳ Pending";
+            return map[report.status ?? "pending"] ?? "⏳ Pending";
         };
 
         async function fetchReportsAndPopulateMap() {
@@ -194,7 +194,7 @@
                 reportsListDiv.innerHTML = '';
 
                 reports.forEach(report => {
-                    const statusText = statusLabel(report.status, report.message);
+                    const statusText = statusLabel(report);
 
                     // Create map marker
                     if (report.lat && report.lon) {
