@@ -151,7 +151,7 @@
             if (message && message.includes('Missing QR')) {
                 return '🚫 Violation Detected';
             }
-            if (message && message.includes('✅ QR Found Correctly')) {
+            if (status === 'success') {
                 return '✅ All Correct';
             }
             
